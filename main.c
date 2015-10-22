@@ -3,14 +3,15 @@
 #include <string.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <limits.h>
+#include <libgen.h>
 
-int cd(char **args) {
+void cd(char **args) {
 	if (args[1] == NULL)
-		fprintf(stderr, "expected argument to \"cd\"\n");
+		chdir(getenv("HOME"));
 	else
 		if (chdir(args[1]) != 0)
 			perror("sh");
-	return 1;
 }
 
 char *readline(void){
@@ -72,9 +73,9 @@ void executeargs(char **args){
     	perror("sh");
     } else {
     // Parent process
-    	do {
+    	do
     		wpid = waitpid(pid, &status, WUNTRACED);
-    	} while (!WIFEXITED(status) && !WIFSIGNALED(status));
+    	while (!WIFEXITED(status) && !WIFSIGNALED(status));
     }
 }
 
@@ -82,12 +83,14 @@ void shell_loop(void) {
 	//read line
 	//tokenize line into args
 	//execute args
-
+	char *cwd;
+	char buff[PATH_MAX];
 	char *line;
 	char **args;
 
 	while(1) {
-		printf("@ ");
+		cwd = getcwd(buff, PATH_MAX);
+		printf("[%s]@ ",basename(cwd));
 		line = readline();
 		args = tokenizeline(line);
 		executeargs(args);
