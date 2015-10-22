@@ -6,7 +6,7 @@
 #include <limits.h>
 #include <libgen.h>
 
-void cd(char **args) {
+void changeDirectory(char **args) {
 	if (args[1] == NULL)
 		chdir(getenv("HOME"));
 	else
@@ -14,7 +14,7 @@ void cd(char **args) {
 			perror("sh");
 }
 
-char *readline(void){
+char *readLine(void){
 	int buffersize = 1024;
 	int pos = 0;
 	char *buffer = malloc(sizeof(char)*buffersize);
@@ -29,13 +29,18 @@ char *readline(void){
 		}
 		else buffer[pos] = c; //fills array with each char as an int
 		pos++;
+
+		if (pos >= buffersize) {
+			buffersize += 1024;
+			buffer = realloc(buffer, buffersize);
+		}
 	}
 }
 
-char **tokenizeline(char *line) {
+char **tokenizeLine(char *line) {
 	int buffersize = 64;
 	int pos = 0;
-	char **buffer = malloc(sizeof(char) *buffersize);
+	char **buffer = malloc(sizeof(char*)*buffersize);
 	char *token;
 
 	token = strtok(line, " \n\a\r\t");
@@ -43,19 +48,24 @@ char **tokenizeline(char *line) {
 		//printf("%s\n",token);
 		buffer[pos] = token;
 		pos++;
+
+		if (pos >= buffersize) {
+			buffersize += 64;
+			buffer = realloc(buffer, buffersize * sizeof(char*));
+		}
 		token = strtok(NULL, " \n\a\r\t");
 	}
 	buffer[pos] = NULL;
 	return buffer;
 }
 
-void executeargs(char **args){
+void executeArgs(char **args){
 	if (args[0] == NULL)
 		return;
 	if (strcmp(args[0], "exit") == 0)
 		exit(EXIT_SUCCESS);
 	if(strcmp(args[0], "cd") == 0) {
-		cd(args);
+		changeDirectory(args);
 		return;
 	}
 	pid_t pid, wpid;
@@ -79,7 +89,7 @@ void executeargs(char **args){
     }
 }
 
-void shell_loop(void) {
+void shellLoop(void) {
 	//read line
 	//tokenize line into args
 	//execute args
@@ -91,9 +101,9 @@ void shell_loop(void) {
 	while(1) {
 		cwd = getcwd(buff, PATH_MAX);
 		printf("[%s]@ ",basename(cwd));
-		line = readline();
-		args = tokenizeline(line);
-		executeargs(args);
+		line = readLine();
+		args = tokenizeLine(line);
+		executeArgs(args);
 
 		free(line); //prevents memory leak
 		free(args);
@@ -101,6 +111,6 @@ void shell_loop(void) {
 }
 
 int main(int argc, char **argv) {
-	shell_loop();
+	shellLoop();
 	return EXIT_SUCCESS;
 }
