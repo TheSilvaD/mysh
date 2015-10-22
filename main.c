@@ -1,30 +1,103 @@
 #include <stdio.h>
 #include <stdlib.h>
-#define BUFSIZE 1024
+#include <string.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
-char *shell_loop(void) {
-	int buffer_size = BUFSIZE;
-	int position = 0;
-	char *buffer = malloc(sizeof(char) * buffer_size);
+int cd(char **args) {
+	if (args[1] == NULL)
+		fprintf(stderr, "expected argument to \"cd\"\n");
+	else
+		if (chdir(args[1]) != 0)
+			perror("sh");
+	return 1;
+}
+
+char *readline(void){
+	int buffersize = 1024;
+	int pos = 0;
+	char *buffer = malloc(sizeof(char)*buffersize);
 	int c;
-	printf("@ ");
-	while(1){
+
+	while(1) {
 		c = getchar();
-		if(c == EOF || c == '\n') {
-			buffer[position] = '\0';
+		//checks to see if we hit EOF or ENTER key
+		if (c == EOF || c =='\n') {
+			buffer[pos] = '\0';
 			return buffer;
 		}
-		else {
-			buffer[position] = c;
-		}
-		position++;
+		else buffer[pos] = c; //fills array with each char as an int
+		pos++;
 	}
-
 }
-int main(int argc, char **argv) {
-	while(1) {
-		printf(shell_loop());
 
+char **tokenizeline(char *line) {
+	int buffersize = 64;
+	int pos = 0;
+	char **buffer = malloc(sizeof(char) *buffersize);
+	char *token;
+
+	token = strtok(line, " \n\a\r\t");
+	while(token != NULL) {
+		//printf("%s\n",token);
+		buffer[pos] = token;
+		pos++;
+		token = strtok(NULL, " \n\a\r\t");
 	}
+	buffer[pos] = NULL;
+	return buffer;
+}
+
+void executeargs(char **args){
+	if (args[0] == NULL)
+		return;
+	if (strcmp(args[0], "exit") == 0)
+		exit(EXIT_SUCCESS);
+	if(strcmp(args[0], "cd") == 0) {
+		cd(args);
+		return;
+	}
+	pid_t pid, wpid;
+	int status;
+	
+	pid = fork();
+
+	if (pid == 0) {
+    // Child process
+		if (execvp(args[0], args) == -1)
+    		perror("sh");
+    	exit(EXIT_FAILURE);
+    } else if (pid < 0) {
+    	// Error forking
+    	perror("sh");
+    } else {
+    // Parent process
+    	do {
+    		wpid = waitpid(pid, &status, WUNTRACED);
+    	} while (!WIFEXITED(status) && !WIFSIGNALED(status));
+    }
+}
+
+void shell_loop(void) {
+	//read line
+	//tokenize line into args
+	//execute args
+
+	char *line;
+	char **args;
+
+	while(1) {
+		printf("@ ");
+		line = readline();
+		args = tokenizeline(line);
+		executeargs(args);
+
+		free(line); //prevents memory leak
+		free(args);
+	}
+}
+
+int main(int argc, char **argv) {
+	shell_loop();
 	return EXIT_SUCCESS;
 }
